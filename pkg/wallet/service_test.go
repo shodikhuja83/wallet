@@ -1,83 +1,67 @@
 package wallet
 
 import (
-	"reflect"
+	"log"
+	"fmt"
 	"testing"
-
 	"github.com/shodikhuja83/wallet/pkg/types"
-	"github.com/google/uuid"
 )
 
-func TestService_RegisterAccount_unsuccess(t *testing.T) {
-	vc := Service{}
-
-	accounts := []types.Account{
-		{ID: 1, Phone: "+992000000001", Balance: 2_000_00},
-		{ID: 2, Phone: "+992000000002", Balance: 3_000_00},
-		{ID: 3, Phone: "+992000000003", Balance: 4_000_00},
-		{ID: 4, Phone: "+992000000004", Balance: 5_000_00},
-		{ID: 5, Phone: "+992000000005", Balance: 6_000_00},
-		{ID: 6, Phone: "+992000000006", Balance: 7_000_00},
+// Автотесты для FindAccountByID
+func TestService_FindAccountByID_success(t *testing.T) {
+	svc := Service{}
+	account, err := svc.RegisterAccount("+9920000001")
+	if err != nil {
+		fmt.Println(account)
 	}
-	result, err := vc.RegisterAccount("+992000000007")
-	for _, account := range accounts {
-		if account.Phone == result.Phone {
-			t.Errorf("invalid result, expected: %v, actual: %v", err, result)
-			break
-		}
+
+	account, err = svc.FindAccountByID(1)
+	if err != nil {
+		t.Errorf("\ngot > %v \nwant > nil", err)
 	}
 }
 
-func TestService_FindAccoundById_Method_NotFound(t *testing.T) {
+func TestService_FindAccountByID_notFound(t *testing.T) {
+	svc := Service{}
+	account, err := svc.RegisterAccount("+9920000001")
+	if err != nil {
+		fmt.Println(account)
+	}
+
+	account, err = svc.FindAccountByID(3)
+	if err == nil {
+		t.Errorf("\ngot > %v \nwant > nil", err)
+	}
+}
+
+// Автотесты для Reject
+func TestService_Reject_success(t *testing.T) {
 	svc := Service{}
 	svc.RegisterAccount("+9920000001")
 
-	account, err := svc.FindAccountByID(3)
-	if err == nil {
-		t.Errorf("\ngot > %v \nwant > nil", account)
-	}
-}
-
-func TestService_FindPaymentByID_success(t *testing.T) {
-	//создаем сервис
-	s := newTestServiceUser()
-	_, payments, err := s.addAccountUser(defaultTestAccountUser)
+	account, err := svc.FindAccountByID(1)
 	if err != nil {
-		t.Error(err)
-		return
+		t.Errorf("\ngot > %v \nwant > nil", err)
 	}
 
-	//пробуем найти платеж
-	payment := payments[0]
-	got, err := s.FindPaymentByID(payment.ID)
+	err = svc.Deposit(account.ID, 1000_00)
 	if err != nil {
-		t.Errorf("FindPaymentByID(): error = %v", err)
+		t.Errorf("\ngot > %v \nwant > nil", err)
 	}
 
-	if !reflect.DeepEqual(payment, got) {
-		t.Errorf("FindPaymentByID(): wrong payment returned = %v", err)
-	}
-}
-
-func TestService_FindPaymentByID_fail(t *testing.T) {
-	//создаем сервис
-	s := newTestServiceUser()
-	_, _, err := s.addAccountUser(defaultTestAccountUser)
+	payment, err := svc.Pay(account.ID, 100_00, "food")
 	if err != nil {
-		t.Error(err)
-		return
+		t.Errorf("\ngot > %v \nwant > nil", err)
 	}
 
-	//пробуем найти несуществующий платеж
-	_, err = s.FindPaymentByID(uuid.New().String())
-	if err == nil {
-		t.Error("FindPaymentByID: must return error, returned nil")
-		return
+	pay, err := svc.FindPaymentByID(payment.ID)
+	if err != nil {
+		t.Errorf("\ngot > %v \nwant > nil", err)
 	}
 
-	if err != ErrPaymentNotFound {
-		t.Errorf("FindPaymentByID(): must return ErrPaymnetNotFound, returned = %v", err)
-		return
+	err = svc.Reject(pay.ID)
+	if err != nil {
+		t.Errorf("\ngot > %v \nwant > nil", err)
 	}
 }
 
@@ -95,7 +79,7 @@ func TestService_Reject_fail(t *testing.T) {
 		t.Errorf("\ngot > %v \nwant > nil", err)
 	}
 
-	payment, err := svc.Pay(account.ID, 100_00, "auto")
+	payment, err := svc.Pay(account.ID, 100_00, "food")
 	if err != nil {
 		t.Errorf("\ngot > %v \nwant > nil", err)
 	}
@@ -105,104 +89,276 @@ func TestService_Reject_fail(t *testing.T) {
 		t.Errorf("\ngot > %v \nwant > nil", err)
 	}
 
-	editPayID := pay.ID + "l"
-	err = svc.Reject(editPayID)
+	wrongPayID := pay.ID + "14"
+	err = svc.Reject(wrongPayID)
 	if err == nil {
 		t.Errorf("\ngot > %v \nwant > nil", err)
 	}
 }
 
-func TestService_Reject_success(t *testing.T) {
-	//создаем сервис
-	s := newTestServiceUser()
-	_, payments, err := s.addAccountUser(defaultTestAccountUser)
+// Автотесты для Repeat
+func TestService_Repeat_success(t *testing.T) {
+	svc := Service{}
+	svc.RegisterAccount("+9920000001")
+  
+	account, err := svc.FindAccountByID(1)
 	if err != nil {
-		t.Error(err)
-		return
+	  t.Errorf("\ngot > %v \nwant > nil", err)
 	}
-
-	//пробуем отменить платёж
-	payment := payments[0]
-	err = s.Reject(payment.ID)
+  
+	err = svc.Deposit(account.ID, 1000_00)
 	if err != nil {
-		t.Errorf("Reject(): error = %v", err)
-		return
+	  t.Errorf("\ngot > %v \nwant > nil", err)
 	}
-
-	savedPayment, err := s.FindPaymentByID(payment.ID)
+  
+	payment, err := svc.Pay(account.ID, 100_00, "auto")
 	if err != nil {
-		t.Errorf("Reject(): status didn't changed, paymnet = %v", savedPayment)
-		return
+	  t.Errorf("\ngot > %v \nwant > nil", err)
 	}
-	savedAccount, err := s.FindAccountByID(payment.AccountID)
+  
+	pay, err := svc.FindPaymentByID(payment.ID)
 	if err != nil {
-		t.Errorf("Reject(): can't find account by id, error = %v", err)
-		return
+	  t.Errorf("\ngot > %v \nwant > nil", err)
 	}
-	if savedAccount.Balance != defaultTestAccountUser.balance {
-		t.Errorf("Reject(): balance didn't changed, account = %v", savedAccount)
-		return
+  
+	pay, err = svc.Repeat(pay.ID)
+	if err != nil {
+	  t.Errorf("Repeat(): Error(): can't pay for an account(%v): %v", pay.ID, err)
 	}
 }
 
-func TestService_Repeat_success_user(t *testing.T) {
-	//создаем сервис
-	s := newTestServiceUser()
-	s.RegisterAccount("+9922000000")
-	account, err := s.FindAccountByID(1)
+// Автотесты для PayFromFavorite
+func TestService_Favorite_success_user(t *testing.T) {
+	svc := Service{}
+
+	account, err := svc.RegisterAccount("+992000000001")
 	if err != nil {
-		t.Error(err)
-		return
+		t.Errorf("method RegisterAccount returned not nil error, account => %v", account)
 	}
-	//пополняем баланс
-	err = s.Deposit(account.ID, 1000_00)
-	if err != nil {
-		t.Errorf("\ngot > %v \nwant > nil", err)
-	}
-	//pay
-	payment, err := s.Pay(account.ID, 100_00, "auto")
+
+	err = svc.Deposit(account.ID, 100_00)
 	if err != nil {
 		t.Errorf("\ngot > %v \nwant > nil", err)
 	}
 
-	pay, err := s.FindPaymentByID(payment.ID)
+	payment, err := svc.Pay(account.ID, 10_00, "food")
 	if err != nil {
 		t.Errorf("\ngot > %v \nwant > nil", err)
 	}
 
-	pay, err = s.Repeat(pay.ID)
+	favorite, err := svc.FavoritePayment(payment.ID, "Tcell")
 	if err != nil {
-		t.Errorf("Repeat(): can't payment for an account(%v), error(%v)", pay.ID, err)
+		t.Errorf("FavoritePayment(): Error(): can't find the favorite(%v): %v", favorite, err)
+	}
+
+	paymentFavorite, err := svc.PayFromFavorite(favorite.ID)
+	if err != nil {
+		t.Errorf("PayFromFavorite(): Error(): can't pay from the favorite(%v): %v", paymentFavorite, err)
 	}
 }
 
-func TestService_FavoritePayment_success_user(t *testing.T) {
-	//создаем сервис
-	var s Service
+func TestService_Export_success_user(t *testing.T) {
+	svc := Service{}
 
-	account, err := s.RegisterAccount("+9922000000")
+	svc.RegisterAccount("+992000000001")
+	svc.RegisterAccount("+992000000002")
+	svc.RegisterAccount("+992000000003")
+
+	err := svc.ExportToFile("export.txt")
 	if err != nil {
-		t.Errorf("method RegisterAccount return not nil error, account=>%v", account)
-		return
-	}
-	//пополняем баланс
-	err = s.Deposit(account.ID, 1000_00)
-	if err != nil {
-		t.Errorf("method Deposit return not nil error, error=>%v", err)
-	}
-	//pay
-	payment, err := s.Pay(account.ID, 100_00, "auto")
-	if err != nil {
-		t.Errorf("method Pay return not nil error, account=>%v", account)
-	}
-	//edit favorite
-	favorite, err := s.FavoritePayment(payment.ID, "auto")
-	if err != nil {
-		t.Errorf("method FavoritePayment return not nil error, favorite=>%v", favorite)
+		t.Errorf("method Export returned not nil error, err => %v", err)
 	}
 
-	paymentFavorite, err := s.PayFromFavorite(favorite.ID)
+}
+
+func TestService_Import_success_user(t *testing.T) {
+	svc := Service{}
+
+	err := svc.ImportFromFile("export.txt")
+
 	if err != nil {
-		t.Errorf("method PayFromFavorite return nil, paymentFavorite(%v)", paymentFavorite)
+		t.Errorf("method Import returned not nil error, err => %v", err)
+	}
+
+}
+
+func TestService_Export_success(t *testing.T) {
+	svc := Service{}
+
+	svc.RegisterAccount("+992000000001")
+	svc.RegisterAccount("+992000000002")
+	svc.RegisterAccount("+992000000003")
+	svc.RegisterAccount("+992000000004")
+
+	err := svc.Export("data")
+	if err != nil {
+		t.Errorf("method ExportToFile returned not nil error, err => %v", err)
+	}
+
+	err = svc.Import("data")
+	if err != nil {
+		t.Errorf("method ExportToFile returned not nil error, err => %v", err)
 	}
 }
+
+func TestService_ExportHistory_success_user(t *testing.T) {
+	svc := Service{}
+
+	account, err := svc.RegisterAccount("+992000000001")
+
+	if err != nil {
+		t.Errorf("method RegisterAccount returned not nil error, account => %v", account)
+	}
+
+	err = svc.Deposit(account.ID, 100_00)
+	if err != nil {
+		t.Errorf("method Deposit returned not nil error, error => %v", err)
+	}
+
+	_, err = svc.Pay(account.ID, 1, "Cafe")
+	_, err = svc.Pay(account.ID, 2, "Cafe")
+	_, err = svc.Pay(account.ID, 3, "Cafe")
+	_, err = svc.Pay(account.ID, 4, "Cafe")
+	_, err = svc.Pay(account.ID, 5, "Cafe")
+	_, err = svc.Pay(account.ID, 6, "Cafe")
+	_, err = svc.Pay(account.ID, 7, "Cafe")
+	_, err = svc.Pay(account.ID, 8, "Cafe")
+	_, err = svc.Pay(account.ID, 9, "Cafe")
+	_, err = svc.Pay(account.ID, 10, "Cafe")
+	_, err = svc.Pay(account.ID, 11, "Cafe")
+	if err != nil {
+		t.Errorf("method Pay returned not nil error, err => %v", err)
+	}
+
+	payments, err := svc.ExportAccountHistory(account.ID)
+
+	if err != nil {
+		t.Errorf("method ExportAccountHistory returned not nil error, err => %v", err)
+	}
+	err = svc.HistoryToFiles(payments, "data", 4)
+
+	if err != nil {
+		t.Errorf("method HistoryToFiles returned not nil error, err => %v", err)
+	}
+
+} 
+
+func BenchmarkSumPayment_user(b *testing.B){
+	var svc Service
+
+	account, err := svc.RegisterAccount("+992000000001")
+
+	if err != nil {
+		b.Errorf("method RegisterAccount returned not nil error, account => %v", account)
+	}
+
+	err = svc.Deposit(account.ID, 100_00)
+	if err != nil {
+		b.Errorf("method Deposit returned not nil error, error => %v", err)
+	}
+
+	_, err = svc.Pay(account.ID, 1, "Cafe")
+	_, err = svc.Pay(account.ID, 2, "Cafe")
+	_, err = svc.Pay(account.ID, 3, "Cafe")
+	_, err = svc.Pay(account.ID, 4, "Cafe")
+	_, err = svc.Pay(account.ID, 5, "Cafe")
+	_, err = svc.Pay(account.ID, 6, "Cafe")
+	_, err = svc.Pay(account.ID, 7, "Cafe")
+	_, err = svc.Pay(account.ID, 8, "Cafe")
+	_, err = svc.Pay(account.ID, 9, "Cafe")
+	_, err = svc.Pay(account.ID, 10, "Cafe")
+	_, err = svc.Pay(account.ID, 11, "Cafe")
+	if err != nil {
+		b.Errorf("method Pay returned not nil error, err => %v", err)
+	}
+
+	want := types.Money(66)
+
+	got := svc.SumPayments(2)
+	if want != got{
+		b.Errorf(" error, want => %v got => %v", want, got)
+	}
+
+} 
+
+func Benchmark_FilterPayments(b *testing.B) {
+	svc := &Service{}
+  
+	account, err := svc.RegisterAccount("+992000000000")
+	if err != nil {
+	  b.Error(err)
+	}
+	for i := 0; i < 103; i++ {
+	  svc.payments = append(svc.payments, &types.Payment{AccountID: account.ID, Amount: 1})
+	}
+  
+	result := 103
+  
+	for i := 0; i < b.N; i++ {
+		payments, err := svc.FilterPayments(account.ID, result)
+	  	if err != nil {
+			b.Error(err)
+		}
+  
+	  	if result != len(payments) {
+			b.Fatalf("invalid result, got %v, want %v", len(payments), result)
+	 	}
+	}
+}
+
+func Benchmark_FilterPaymentsByFn(b *testing.B) {
+	svc := &Service{}
+  
+	for i := 0; i < 103; i++ {
+	  svc.payments = append(svc.payments, &types.Payment{Amount: 1})
+	}
+  
+	result := 103
+  
+	for i := 0; i < b.N; i++ {
+	  payments, err := svc.FilterPaymentsByFn(
+		func(payment types.Payment) bool {
+		  if payment.Amount == 1 {
+			return true
+		  }
+  
+		  return false
+		},
+		result)
+	  if err != nil {
+		b.Error(err)
+	  }
+  
+	  if result != len(payments) {
+		b.Fatalf("invalid result, got %v, want %v", len(payments), result)
+	  }
+	}
+}
+
+func BenchmarkSumPaymentsWithProgress_user(b *testing.B) {
+	svc := &Service{}
+  
+	account, err := svc.RegisterAccount("+992000000001")
+	if err != nil {
+	  b.Errorf("method RegisterAccount returned not nil error, account => %v", account)
+	}
+  
+	err = svc.Deposit(account.ID, 1000)
+	if err != nil {
+	  b.Errorf("method Deposit returned not nil error, error => %v", err)
+	}
+  
+	for i := types.Money(1); i <= 10; i++ {
+	  svc.Pay(account.ID, types.Money(i), "red bull") 	/* отдаю дань прекрасному напитку, что сделал этот код возможным */
+	}
+	fmt.Println(svc.payments[9])
+  
+	ch := svc.SumPaymentsWithProgress()
+  
+	s, works := <-ch
+	if !works {
+	  b.Errorf("method SumPaymentsWithProgress was not closed => %v", works)
+	}
+  
+	log.Println("\n s => ", s)
+  }

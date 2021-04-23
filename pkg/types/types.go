@@ -1,38 +1,52 @@
 package types
 
+//Money int64
 type Money int64
 
-type Category string
-
-type Status string
-
+//PaymentCategory string
 type PaymentCategory string
 
+//PaymentStatus string
+type PaymentStatus string
+
+//Statuses
 const (
-	PaymentStatusOk         Status = "OK"
-	PaymentStatusFail       Status = "FAIL"
-	PaymentStatusInProgress Status = "INPROGRESS"
+	PaymentStatusOk         PaymentStatus = "OK"
+	PaymentStatusFail       PaymentStatus = "FAIL"
+	PaymentStatusInProgress PaymentStatus = "INPROGRESS"
 )
 
+//Payment model
 type Payment struct {
 	ID        string
+	AccountID int64
 	Amount    Money
 	Category  PaymentCategory
-	Status    Status
-	AccountID int64
+	Status    PaymentStatus
 }
+
+//Phone string
 type Phone string
 
+//Account model
 type Account struct {
 	ID      int64
 	Phone   Phone
 	Balance Money
 }
 
+//Favorite model
 type Favorite struct {
 	ID        string
 	AccountID int64
 	Name      string
 	Amount    Money
 	Category  PaymentCategory
+}
+
+
+//Progress ..
+type Progress struct {
+	Part   int
+	Result Money
 }
